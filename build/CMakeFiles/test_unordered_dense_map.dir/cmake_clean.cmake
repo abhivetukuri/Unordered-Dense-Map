@@ -1,6 +1,6 @@
 file(REMOVE_RECURSE
-  "CMakeFiles/test_unordered_dense_map.dir/test_unordered_dense_map.cpp.o"
-  "CMakeFiles/test_unordered_dense_map.dir/test_unordered_dense_map.cpp.o.d"
+  "CMakeFiles/test_unordered_dense_map.dir/src/test_unordered_dense_map.cpp.o"
+  "CMakeFiles/test_unordered_dense_map.dir/src/test_unordered_dense_map.cpp.o.d"
   "test_unordered_dense_map"
   "test_unordered_dense_map.pdb"
 )

@@ -72,29 +72,30 @@ include CMakeFiles/test_unordered_dense_map.dir/flags.make
 CMakeFiles/test_unordered_dense_map.dir/codegen:
 .PHONY : CMakeFiles/test_unordered_dense_map.dir/codegen
 
-CMakeFiles/test_unordered_dense_map.dir/test_unordered_dense_map.cpp.o: CMakeFiles/test_unordered_dense_map.dir/flags.make
-CMakeFiles/test_unordered_dense_map.dir/test_unordered_dense_map.cpp.o: /Users/abhiv/Desktop/Unordered-Dense-Map/test_unordered_dense_map.cpp
-CMakeFiles/test_unordered_dense_map.dir/test_unordered_dense_map.cpp.o: CMakeFiles/test_unordered_dense_map.dir/compiler_depend.ts
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --progress-dir=/Users/abhiv/Desktop/Unordered-Dense-Map/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_1) "Building CXX object CMakeFiles/test_unordered_dense_map.dir/test_unordered_dense_map.cpp.o"
-	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -MD -MT CMakeFiles/test_unordered_dense_map.dir/test_unordered_dense_map.cpp.o -MF CMakeFiles/test_unordered_dense_map.dir/test_unordered_dense_map.cpp.o.d -o CMakeFiles/test_unordered_dense_map.dir/test_unordered_dense_map.cpp.o -c /Users/abhiv/Desktop/Unordered-Dense-Map/test_unordered_dense_map.cpp
+CMakeFiles/test_unordered_dense_map.dir/src/test_unordered_dense_map.cpp.o: CMakeFiles/test_unordered_dense_map.dir/flags.make
+CMakeFiles/test_unordered_dense_map.dir/src/test_unordered_dense_map.cpp.o: /Users/abhiv/Desktop/Unordered-Dense-Map/src/test_unordered_dense_map.cpp
+CMakeFiles/test_unordered_dense_map.dir/src/test_unordered_dense_map.cpp.o: CMakeFiles/test_unordered_dense_map.dir/compiler_depend.ts
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --progress-dir=/Users/abhiv/Desktop/Unordered-Dense-Map/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_1) "Building CXX object CMakeFiles/test_unordered_dense_map.dir/src/test_unordered_dense_map.cpp.o"
+	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -MD -MT CMakeFiles/test_unordered_dense_map.dir/src/test_unordered_dense_map.cpp.o -MF CMakeFiles/test_unordered_dense_map.dir/src/test_unordered_dense_map.cpp.o.d -o CMakeFiles/test_unordered_dense_map.dir/src/test_unordered_dense_map.cpp.o -c /Users/abhiv/Desktop/Unordered-Dense-Map/src/test_unordered_dense_map.cpp
 
-CMakeFiles/test_unordered_dense_map.dir/test_unordered_dense_map.cpp.i: cmake_force
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green "Preprocessing CXX source to CMakeFiles/test_unordered_dense_map.dir/test_unordered_dense_map.cpp.i"
-	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -E /Users/abhiv/Desktop/Unordered-Dense-Map/test_unordered_dense_map.cpp > CMakeFiles/test_unordered_dense_map.dir/test_unordered_dense_map.cpp.i
+CMakeFiles/test_unordered_dense_map.dir/src/test_unordered_dense_map.cpp.i: cmake_force
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green "Preprocessing CXX source to CMakeFiles/test_unordered_dense_map.dir/src/test_unordered_dense_map.cpp.i"
+	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -E /Users/abhiv/Desktop/Unordered-Dense-Map/src/test_unordered_dense_map.cpp > CMakeFiles/test_unordered_dense_map.dir/src/test_unordered_dense_map.cpp.i
 
-CMakeFiles/test_unordered_dense_map.dir/test_unordered_dense_map.cpp.s: cmake_force
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green "Compiling CXX source to assembly CMakeFiles/test_unordered_dense_map.dir/test_unordered_dense_map.cpp.s"
-	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -S /Users/abhiv/Desktop/Unordered-Dense-Map/test_unordered_dense_map.cpp -o CMakeFiles/test_unordered_dense_map.dir/test_unordered_dense_map.cpp.s
+CMakeFiles/test_unordered_dense_map.dir/src/test_unordered_dense_map.cpp.s: cmake_force
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green "Compiling CXX source to assembly CMakeFiles/test_unordered_dense_map.dir/src/test_unordered_dense_map.cpp.s"
+	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -S /Users/abhiv/Desktop/Unordered-Dense-Map/src/test_unordered_dense_map.cpp -o CMakeFiles/test_unordered_dense_map.dir/src/test_unordered_dense_map.cpp.s
 
 # Object files for target test_unordered_dense_map
 test_unordered_dense_map_OBJECTS = \
-"CMakeFiles/test_unordered_dense_map.dir/test_unordered_dense_map.cpp.o"
+"CMakeFiles/test_unordered_dense_map.dir/src/test_unordered_dense_map.cpp.o"
 
 # External object files for target test_unordered_dense_map
 test_unordered_dense_map_EXTERNAL_OBJECTS =
 
-test_unordered_dense_map: CMakeFiles/test_unordered_dense_map.dir/test_unordered_dense_map.cpp.o
+test_unordered_dense_map: CMakeFiles/test_unordered_dense_map.dir/src/test_unordered_dense_map.cpp.o
 test_unordered_dense_map: CMakeFiles/test_unordered_dense_map.dir/build.make
+test_unordered_dense_map: libunordered_dense_map.a
 test_unordered_dense_map: CMakeFiles/test_unordered_dense_map.dir/link.txt
 	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --bold --progress-dir=/Users/abhiv/Desktop/Unordered-Dense-Map/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_2) "Linking CXX executable test_unordered_dense_map"
 	$(CMAKE_COMMAND) -E cmake_link_script CMakeFiles/test_unordered_dense_map.dir/link.txt --verbose=$(VERBOSE)

@@ -38,7 +38,18 @@ if(NOT DEFINED CMAKE_OBJDUMP)
 endif()
 
 if(CMAKE_INSTALL_COMPONENT STREQUAL "Unspecified" OR NOT CMAKE_INSTALL_COMPONENT)
-  file(INSTALL DESTINATION "${CMAKE_INSTALL_PREFIX}/include" TYPE FILE FILES "/Users/abhiv/Desktop/Unordered-Dense-Map/unordered_dense_map.hpp")
+  file(INSTALL DESTINATION "${CMAKE_INSTALL_PREFIX}/lib" TYPE STATIC_LIBRARY FILES "/Users/abhiv/Desktop/Unordered-Dense-Map/build/libunordered_dense_map.a")
+  if(EXISTS "$ENV{DESTDIR}${CMAKE_INSTALL_PREFIX}/lib/libunordered_dense_map.a" AND
+     NOT IS_SYMLINK "$ENV{DESTDIR}${CMAKE_INSTALL_PREFIX}/lib/libunordered_dense_map.a")
+    execute_process(COMMAND "/usr/bin/ranlib" "$ENV{DESTDIR}${CMAKE_INSTALL_PREFIX}/lib/libunordered_dense_map.a")
+  endif()
+endif()
+
+if(CMAKE_INSTALL_COMPONENT STREQUAL "Unspecified" OR NOT CMAKE_INSTALL_COMPONENT)
+  file(INSTALL DESTINATION "${CMAKE_INSTALL_PREFIX}/include" TYPE FILE FILES
+    "/Users/abhiv/Desktop/Unordered-Dense-Map/include/unordered_dense_map.hpp"
+    "/Users/abhiv/Desktop/Unordered-Dense-Map/include/unordered_dense_map_impl.hpp"
+    )
 endif()
 
 if(CMAKE_INSTALL_COMPONENT STREQUAL "Unspecified" OR NOT CMAKE_INSTALL_COMPONENT)
@@ -59,6 +70,9 @@ if(CMAKE_INSTALL_COMPONENT STREQUAL "Unspecified" OR NOT CMAKE_INSTALL_COMPONENT
     unset(_cmake_export_file_changed)
   endif()
   file(INSTALL DESTINATION "${CMAKE_INSTALL_PREFIX}/lib/cmake/UnorderedDenseMap" TYPE FILE FILES "/Users/abhiv/Desktop/Unordered-Dense-Map/build/CMakeFiles/Export/8619173ccfe52acbb1a280f05fda5f29/UnorderedDenseMapTargets.cmake")
+  if(CMAKE_INSTALL_CONFIG_NAME MATCHES "^()$")
+    file(INSTALL DESTINATION "${CMAKE_INSTALL_PREFIX}/lib/cmake/UnorderedDenseMap" TYPE FILE FILES "/Users/abhiv/Desktop/Unordered-Dense-Map/build/CMakeFiles/Export/8619173ccfe52acbb1a280f05fda5f29/UnorderedDenseMapTargets-noconfig.cmake")
+  endif()
 endif()
 
 if(CMAKE_INSTALL_COMPONENT STREQUAL "Unspecified" OR NOT CMAKE_INSTALL_COMPONENT)

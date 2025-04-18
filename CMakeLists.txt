@@ -27,8 +27,16 @@ if(COMPILER_SUPPORTS_SSE42)
     add_definitions(-DUSE_SSE42)
 endif()
 
+# Create a library target
+add_library(unordered_dense_map STATIC src/unordered_dense_map.cpp)
+target_include_directories(unordered_dense_map PUBLIC 
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+    $<INSTALL_INTERFACE:include>
+)
+target_compile_features(unordered_dense_map PUBLIC cxx_std_20)
+
 # Create the test executable
-add_executable(test_unordered_dense_map test_unordered_dense_map.cpp)
+add_executable(test_unordered_dense_map src/test_unordered_dense_map.cpp)
 
 # Set target properties
 set_target_properties(test_unordered_dense_map PROPERTIES
@@ -36,19 +44,14 @@ set_target_properties(test_unordered_dense_map PROPERTIES
     CXX_STANDARD_REQUIRED ON
 )
 
-# Add include directories
-target_include_directories(test_unordered_dense_map PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+# Link the library to the test executable
+target_link_libraries(test_unordered_dense_map PRIVATE unordered_dense_map)
 
 # Enable testing
 enable_testing()
 
 # Add test
 add_test(NAME UnorderedDenseMapTest COMMAND test_unordered_dense_map)
-
-# Create a library target for the header-only implementation
-add_library(unordered_dense_map INTERFACE)
-target_include_directories(unordered_dense_map INTERFACE ${CMAKE_CURRENT_SOURCE_DIR})
-target_compile_features(unordered_dense_map INTERFACE cxx_std_20)
 
 # Install targets
 install(TARGETS unordered_dense_map
@@ -60,7 +63,9 @@ install(TARGETS unordered_dense_map
 )
 
 # Install headers
-install(FILES unordered_dense_map.hpp
+install(FILES 
+    include/unordered_dense_map.hpp
+    include/unordered_dense_map_impl.hpp
     DESTINATION include
 )
 
