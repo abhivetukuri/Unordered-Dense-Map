@@ -1,1 +1,0 @@
-/usr/bin/c++  -march=native -mtune=native -mavx2 -msse4.2 -arch arm64 -Wl,-search_paths_first -Wl,-headerpad_max_install_names CMakeFiles/test_unordered_dense_map.dir/src/test_unordered_dense_map.cpp.o -o test_unordered_dense_map  libunordered_dense_map.a

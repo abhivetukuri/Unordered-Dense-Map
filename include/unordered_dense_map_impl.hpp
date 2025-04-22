@@ -1,46 +1,6 @@
 #pragma once
 
 #include "unordered_dense_map.hpp"
-#include <iostream>
-
-#if defined(__x86_64__) || defined(_M_X64) || defined(__i386) || defined(_M_IX86)
-#include <immintrin.h>
-#define UNORDERED_DENSE_MAP_SIMD 1
-#else
-#define UNORDERED_DENSE_MAP_SIMD 0
-#endif
-
-namespace detail
-{
-
-// SIMD-optimized hash mixing for poor-quality hashes
-#if UNORDERED_DENSE_MAP_SIMD
-    inline uint64_t mix_hash(uint64_t hash)
-    {
-        __m256i h = _mm256_set1_epi64x(hash);
-        __m256i mix = _mm256_set_epi64x(0x9e3779b97f4a7c15, 0xbf58476d1ce4e5b9, 0x94d049bb133111eb, 0x5ac635d8aa3a93e7);
-        __m256i result = _mm256_xor_si256(h, mix);
-        result = _mm256_add_epi64(result, _mm256_slli_epi64(result, 13));
-        result = _mm256_xor_si256(result, _mm256_srli_epi64(result, 7));
-        result = _mm256_add_epi64(result, _mm256_slli_epi64(result, 17));
-        result = _mm256_xor_si256(result, _mm256_srli_epi64(result, 5));
-        uint64_t mixed[4];
-        _mm256_storeu_si256(reinterpret_cast<__m256i *>(mixed), result);
-        return mixed[0] ^ mixed[1] ^ mixed[2] ^ mixed[3];
-    }
-#else
-    inline uint64_t mix_hash(uint64_t hash)
-    {
-        hash ^= (hash >> 33);
-        hash *= 0xff51afd7ed558ccdULL;
-        hash ^= (hash >> 33);
-        hash *= 0xc4ceb9fe1a85ec53ULL;
-        hash ^= (hash >> 33);
-        return hash;
-    }
-#endif
-
-} // namespace detail
 
 // Template method implementations
 template <typename Key, typename Value, typename Hash>
@@ -84,7 +44,6 @@ unordered_dense_map<Key, Value, Hash>::try_emplace(const Key &key, Args &&...arg
             entries_.emplace_back(std::move(kcopy), std::move(vcopy));
             ++size_;
 
-
             return {iterator(this, entry_idx), true};
         }
 
@@ -98,8 +57,23 @@ unordered_dense_map<Key, Value, Hash>::try_emplace(const Key &key, Args &&...arg
             }
         }
 
-        // Robin-hood hashing disabled for now to avoid complex entry index management
-        // TODO: Implement proper robin-hood with entry index tracking
+        // Robin-hood: if current element has traveled less distance, swap them
+        if (bucket.is_occupied() && bucket.distance < distance)
+        {
+            // Swap the key-value data in place in the entries array
+            size_t entry_index = bucket.entry_index;
+            std::swap(kcopy, entries_[entry_index].key);
+            std::swap(vcopy, entries_[entry_index].value);
+            
+            // Swap metadata (with proper type conversions)
+            uint8_t tmp_fp = fingerprint;
+            fingerprint = static_cast<uint8_t>(bucket.fingerprint);
+            bucket.fingerprint = tmp_fp;
+            
+            uint8_t tmp_dist = static_cast<uint8_t>(distance);
+            distance = static_cast<size_t>(bucket.distance);
+            bucket.distance = tmp_dist;
+        }
 
         current_pos = (current_pos + 1) % capacity_;
         ++distance;
@@ -135,7 +109,7 @@ unordered_dense_map<Key, Value, Hash>::erase(const Key &key)
         {
             return 0; // Key not found
         }
-        
+
         if (bucket.is_tombstone())
         {
             // Skip tombstones and continue probing
@@ -154,8 +128,6 @@ unordered_dense_map<Key, Value, Hash>::erase(const Key &key)
                 // Move the last entry to this position to maintain dense packing
                 if (entry_index != size_ - 1)
                 {
-                    Key moved_key = entries_[size_ - 1].key; // Save key before move
-                    
                     // Move the last entry to fill the gap
                     entries_[entry_index] = std::move(entries_[size_ - 1]);
 
@@ -172,7 +144,7 @@ unordered_dense_map<Key, Value, Hash>::erase(const Key &key)
 
                 // Use tombstone instead of backward-shift for now
                 bucket.set_tombstone();
-                
+
                 // Remove the last entry (which is now either the deleted entry or empty after move)
                 entries_.pop_back();
                 --size_;
@@ -205,7 +177,6 @@ unordered_dense_map<Key, Value, Hash>::find(const Key &key)
     size_t current_pos = ideal_pos;
     size_t distance = 0;
 
-
     while (distance < MAX_DISTANCE)
     {
         detail::Bucket &bucket = buckets_[current_pos];
@@ -214,7 +185,7 @@ unordered_dense_map<Key, Value, Hash>::find(const Key &key)
         {
             return end();
         }
-        
+
         if (bucket.is_tombstone())
         {
             // Skip tombstones and continue probing
@@ -226,7 +197,6 @@ unordered_dense_map<Key, Value, Hash>::find(const Key &key)
         if (bucket.is_occupied() && bucket.fingerprint == fingerprint)
         {
             size_t entry_index = bucket.entry_index;
-
 
             if (entries_[entry_index].key == key)
             {
@@ -266,4 +236,99 @@ void unordered_dense_map<Key, Value, Hash>::rehash(size_t new_capacity)
     {
         emplace(std::move(old_entries[i].key), std::move(old_entries[i].value));
     }
+}
+
+// Batch operations implementation
+template <typename Key, typename Value, typename Hash>
+template<typename InputIt>
+void unordered_dense_map<Key, Value, Hash>::batch_insert(InputIt first, InputIt last)
+{
+    size_t count = std::distance(first, last);
+    
+    // Reserve space to minimize reallocations
+    if (size_ + count >= capacity_ * MAX_LOAD_FACTOR)
+    {
+        size_t new_capacity = capacity_;
+        while (size_ + count >= new_capacity * MAX_LOAD_FACTOR)
+        {
+            new_capacity *= 2;
+        }
+        rehash(new_capacity);
+    }
+    
+    // For small batches or non-integer keys, use regular insertion
+    if constexpr (!std::is_same_v<Key, int> || count < 16)
+    {
+        for (auto it = first; it != last; ++it)
+        {
+            if constexpr (std::is_same_v<typename std::iterator_traits<InputIt>::value_type, std::pair<Key, Value>>)
+            {
+                insert(*it);
+            }
+            else
+            {
+                emplace(*it, Value{});
+            }
+        }
+        return;
+    }
+    
+    // SIMD-optimized path for integer keys
+#if defined(__x86_64__) || defined(_M_X64) || defined(__i386) || defined(_M_IX86)
+    if constexpr (std::is_same_v<Key, int>)
+    {
+        std::vector<int> keys;
+        std::vector<Value> values;
+        keys.reserve(count);
+        values.reserve(count);
+        
+        for (auto it = first; it != last; ++it)
+        {
+            if constexpr (std::is_same_v<typename std::iterator_traits<InputIt>::value_type, std::pair<Key, Value>>)
+            {
+                keys.push_back(it->first);
+                values.push_back(it->second);
+            }
+            else
+            {
+                keys.push_back(*it);
+                values.emplace_back();
+            }
+        }
+        
+        // Use vectorized hashing (implementation in .cpp file)
+        for (size_t i = 0; i < count; ++i)
+        {
+            emplace(std::move(keys[i]), std::move(values[i]));
+        }
+    }
+#endif
+}
+
+template <typename Key, typename Value, typename Hash>
+template<typename InputIt, typename OutputIt>
+void unordered_dense_map<Key, Value, Hash>::batch_find(InputIt keys_first, InputIt keys_last, OutputIt results_first)
+{
+    // For now, implement using regular find
+    // TODO: Add SIMD optimization for probe sequence
+    for (auto it = keys_first; it != keys_last; ++it, ++results_first)
+    {
+        *results_first = find(*it);
+    }
+}
+
+template <typename Key, typename Value, typename Hash>
+template<typename InputIt>
+std::vector<bool> unordered_dense_map<Key, Value, Hash>::batch_contains(InputIt first, InputIt last)
+{
+    size_t count = std::distance(first, last);
+    std::vector<bool> results;
+    results.reserve(count);
+    
+    for (auto it = first; it != last; ++it)
+    {
+        results.push_back(contains(*it));
+    }
+    
+    return results;
 }

@@ -13,90 +13,13 @@
 // Forward declarations for non-template implementations
 namespace detail
 {
-    // WyHash implementation for fast hashing
     class WyHash
     {
-    private:
-        static constexpr uint64_t wyhash64_x = 0x60ea27eeadc3b5efULL;
-        static constexpr uint64_t wyhash64_a = 0x3b3897599180e0c5ULL;
-        static constexpr uint64_t wyhash64_b = 0x1b8735937b4aac63ULL;
-        static constexpr uint64_t wyhash64_c = 0x96be6a03f93d9cd7ULL;
-        static constexpr uint64_t wyhash64_d = 0xebd33483acc5ea64ULL;
-
     public:
-        static uint64_t hash(const void *key, size_t len, uint64_t seed = 0)
-        {
-            const uint8_t *p = static_cast<const uint8_t *>(key);
-            uint64_t a, b;
-
-            if (len <= 16)
-            {
-                if (len >= 4)
-                {
-                    a = (static_cast<uint64_t>(p[0]) << 32) | (static_cast<uint64_t>(p[len >> 1]) << 16) | (static_cast<uint64_t>(p[len - 2]) << 8) | p[len - 1];
-                    b = (static_cast<uint64_t>(p[len - 4]) << 32) | (static_cast<uint64_t>(p[len - 3]) << 16) | (static_cast<uint64_t>(p[len - 2]) << 8) | p[len - 1];
-                }
-                else if (len > 0)
-                {
-                    a = p[0];
-                    b = p[len - 1];
-                }
-                else
-                {
-                    a = b = 0;
-                }
-            }
-            else
-            {
-                size_t i = len;
-                if (i > 48)
-                {
-                    uint64_t see1 = seed, see2 = seed;
-                    do
-                    {
-                        seed = wyhash64_mum(wyhash64_read(p, 8) ^ wyhash64_a, wyhash64_read(p + 8, 8) ^ seed);
-                        see1 = wyhash64_mum(wyhash64_read(p + 16, 8) ^ wyhash64_b, wyhash64_read(p + 24, 8) ^ see1);
-                        see2 = wyhash64_mum(wyhash64_read(p + 32, 8) ^ wyhash64_c, wyhash64_read(p + 40, 8) ^ see2);
-                        p += 48;
-                        i -= 48;
-                    } while (i > 48);
-                    seed ^= see1 ^ see2;
-                }
-                while (i > 16)
-                {
-                    seed = wyhash64_mum(wyhash64_read(p, 8) ^ wyhash64_a, wyhash64_read(p + 8, 8) ^ seed);
-                    i -= 16;
-                    p += 16;
-                }
-                a = wyhash64_read(p + i - 16, 8);
-                b = wyhash64_read(p + i - 8, 8);
-            }
-
-            a ^= wyhash64_a;
-            b ^= seed;
-            a *= wyhash64_b;
-            b *= wyhash64_c;
-            a = wyhash64_mum(a, b);
-            seed ^= a ^ b;
-            return wyhash64_mum(seed, len ^ wyhash64_d);
-        }
-
+        static uint64_t hash(const void *key, size_t len, uint64_t seed = 0);
     private:
-        static uint64_t wyhash64_mum(uint64_t A, uint64_t B)
-        {
-            uint64_t r = A * B;
-            return r - (r >> 32);
-        }
-
-        static uint64_t wyhash64_read(const uint8_t *p, size_t k)
-        {
-            uint64_t r = 0;
-            for (size_t i = 0; i < k; ++i)
-            {
-                r |= static_cast<uint64_t>(p[i]) << (i * 8);
-            }
-            return r;
-        }
+        static uint64_t wyhash64_mum(uint64_t A, uint64_t B);
+        static uint64_t wyhash64_read(const uint8_t *p, size_t k);
     };
 
     template <typename T>
@@ -112,19 +35,14 @@ namespace detail
             return static_cast<uint8_t>(h & 0xFF);
         }
     };
+    
     template <>
     struct hash_traits<std::string>
     {
-        static uint64_t hash(const std::string &key)
-        {
-            return WyHash::hash(key.data(), key.size());
-        }
-        static uint8_t fingerprint(const std::string &key)
-        {
-            uint64_t h = hash(key);
-            return static_cast<uint8_t>(h & 0xFF);
-        }
+        static uint64_t hash(const std::string &key);
+        static uint8_t fingerprint(const std::string &key);
     };
+    
     uint64_t mix_hash(uint64_t hash);
 
     // 8-byte bucket structure with fingerprinting and entry index
@@ -322,6 +240,16 @@ public:
     const_iterator find(const Key &key) const;
     size_type count(const Key &key) const { return find(key) != end() ? 1 : 0; }
     bool contains(const Key &key) const { return find(key) != end(); }
+    
+    // Batch operations (SIMD optimized when available)
+    template<typename InputIt>
+    void batch_insert(InputIt first, InputIt last);
+    
+    template<typename InputIt, typename OutputIt>
+    void batch_find(InputIt keys_first, InputIt keys_last, OutputIt results_first);
+    
+    template<typename InputIt>
+    std::vector<bool> batch_contains(InputIt first, InputIt last);
 
 private:
     void rehash(size_t new_capacity);

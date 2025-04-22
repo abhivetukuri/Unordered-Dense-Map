@@ -3,6 +3,7 @@
 #include <chrono>
 #include <random>
 #include <unordered_map>
+#include <iomanip>
 #include <string>
 #include <iomanip>
 #include <cassert>
@@ -29,21 +30,27 @@ double benchmark_insertion(const std::vector<std::pair<int, int>> &data)
 template <typename MapType>
 double benchmark_lookup(const MapType &map, const std::vector<int> &keys)
 {
-    int sum = 0;
-    auto start = high_resolution_clock::now();
+    auto start = std::chrono::high_resolution_clock::now();
 
-    for (int key : keys)
+    // Perform multiple passes for better measurement
+    const int num_passes = 10;
+    for (int pass = 0; pass < num_passes; ++pass)
     {
-        auto it = map.find(key);
-        if (it != map.end())
+        for (int key : keys)
         {
-            sum += it->second;
+            auto it = map.find(key);
+            // Prevent compiler from optimizing away the lookup
+            if (it != map.end())
+            {
+                volatile int dummy = it->second;
+                (void)dummy;
+            }
         }
     }
 
-    auto end = high_resolution_clock::now();
-    auto duration = duration_cast<microseconds>(end - start);
-    return duration.count() / 1000000.0;
+    auto end = std::chrono::high_resolution_clock::now();
+    std::chrono::duration<double> diff = end - start;
+    return diff.count() / num_passes; // Return average time per pass
 }
 
 void test_basic_functionality()
@@ -209,11 +216,13 @@ void test_backward_shift_deletion()
     for (int i = 30; i < 100; ++i)
     {
         auto it = map.find(i);
-        if (it == map.end()) {
+        if (it == map.end())
+        {
             std::cout << "ERROR: Could not find key " << i << std::endl;
             assert(false);
         }
-        if (it->second != i * 2) {
+        if (it->second != i * 2)
+        {
             std::cout << "ERROR: Key " << i << " has wrong value. Expected: " << (i * 2) << ", Got: " << it->second << std::endl;
             assert(false);
         }
@@ -232,7 +241,7 @@ void performance_comparison()
 {
     std::cout << "\n=== Performance Comparison ===" << std::endl;
 
-    const int num_elements = 100000;
+    const int num_elements = 1000000; // 1 million elements for better measurement
 
     // Generate test data
     std::vector<std::pair<int, int>> data;
@@ -247,12 +256,21 @@ void performance_comparison()
         data.emplace_back(dis(gen), i);
     }
 
-    // Generate lookup keys
+    // Generate lookup keys (mix of existing and non-existing)
     std::vector<int> lookup_keys;
-    lookup_keys.reserve(num_elements / 2);
-    for (int i = 0; i < num_elements / 2; ++i)
+    lookup_keys.reserve(num_elements);
+    for (int i = 0; i < num_elements; ++i)
     {
-        lookup_keys.push_back(dis(gen));
+        if (i % 3 == 0)
+        {
+            // Use existing keys
+            lookup_keys.push_back(data[i % data.size()].first);
+        }
+        else
+        {
+            // Use random keys (mostly non-existing)
+            lookup_keys.push_back(dis(gen));
+        }
     }
 
     // Test insertion performance
@@ -272,21 +290,29 @@ void performance_comparison()
     double dense_lookup_time = benchmark_lookup(dense_map, lookup_keys);
     double std_lookup_time = benchmark_lookup(std_map, lookup_keys);
 
-    // Print results
-    std::cout << std::fixed << std::setprecision(3);
-    std::cout << "Insertion Performance:" << std::endl;
-    std::cout << "  Unordered Dense Map: " << dense_insert_time << "s" << std::endl;
-    std::cout << "  std::unordered_map:  " << std_insert_time << "s" << std::endl;
-    std::cout << "  Speedup: " << std_insert_time / dense_insert_time << "x" << std::endl;
+    // Memory usage comparison (approximate)
+    size_t dense_memory = sizeof(unordered_dense_map<int, int>) +
+                          dense_map.size() * (sizeof(int) + sizeof(int)) +
+                          dense_map.size() * sizeof(detail::Bucket);
+    size_t std_memory = sizeof(std::unordered_map<int, int>) +
+                        std_map.size() * (sizeof(int) + sizeof(int) + sizeof(void *));
 
-    std::cout << "\nLookup Performance:" << std::endl;
-    std::cout << "  Unordered Dense Map: " << dense_lookup_time << "s" << std::endl;
-    std::cout << "  std::unordered_map:  " << std_lookup_time << "s" << std::endl;
-    std::cout << "  Speedup: " << std_lookup_time / dense_lookup_time << "x" << std::endl;
+    std::cout << "Insertion Performance (1M elements):" << std::endl;
+    std::cout << "  Unordered Dense Map: " << std::fixed << std::setprecision(3) << dense_insert_time << "s" << std::endl;
+    std::cout << "  std::unordered_map:  " << std::fixed << std::setprecision(3) << std_insert_time << "s" << std::endl;
+    std::cout << "  Speedup: " << std::fixed << std::setprecision(2) << (std_insert_time / dense_insert_time) << "x" << std::endl;
+    std::cout << std::endl;
 
-    std::cout << "\nMemory Usage:" << std::endl;
-    std::cout << "  Unordered Dense Map: " << sizeof(unordered_dense_map<int, int>) << " bytes (base)" << std::endl;
-    std::cout << "  std::unordered_map:  " << sizeof(std::unordered_map<int, int>) << " bytes (base)" << std::endl;
+    std::cout << "Lookup Performance (1M lookups):" << std::endl;
+    std::cout << "  Unordered Dense Map: " << std::fixed << std::setprecision(3) << dense_lookup_time << "s" << std::endl;
+    std::cout << "  std::unordered_map:  " << std::fixed << std::setprecision(3) << std_lookup_time << "s" << std::endl;
+    std::cout << "  Speedup: " << std::fixed << std::setprecision(2) << (std_lookup_time / dense_lookup_time) << "x" << std::endl;
+    std::cout << std::endl;
+
+    std::cout << "Memory Usage (approximate):" << std::endl;
+    std::cout << "  Unordered Dense Map: " << (dense_memory / 1024 / 1024) << " MB" << std::endl;
+    std::cout << "  std::unordered_map:  " << (std_memory / 1024 / 1024) << " MB" << std::endl;
+    std::cout << "  Memory ratio: " << std::fixed << std::setprecision(2) << (double)dense_memory / std_memory << "x" << std::endl;
 }
 
 void test_simd_optimizations()

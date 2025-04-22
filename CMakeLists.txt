@@ -35,8 +35,10 @@ target_include_directories(unordered_dense_map PUBLIC
 )
 target_compile_features(unordered_dense_map PUBLIC cxx_std_20)
 
-# Create the test executable
+# Create the test executables
 add_executable(test_unordered_dense_map src/test_unordered_dense_map.cpp)
+add_executable(test_concurrent src/test_concurrent.cpp)
+add_executable(benchmark src/benchmark.cpp)
 
 # Set target properties
 set_target_properties(test_unordered_dense_map PROPERTIES
@@ -44,14 +46,32 @@ set_target_properties(test_unordered_dense_map PROPERTIES
     CXX_STANDARD_REQUIRED ON
 )
 
-# Link the library to the test executable
+set_target_properties(test_concurrent PROPERTIES
+    CXX_STANDARD 20
+    CXX_STANDARD_REQUIRED ON
+)
+
+set_target_properties(benchmark PROPERTIES
+    CXX_STANDARD 20
+    CXX_STANDARD_REQUIRED ON
+)
+
+# Link the library to the test executables
 target_link_libraries(test_unordered_dense_map PRIVATE unordered_dense_map)
+target_link_libraries(test_concurrent PRIVATE unordered_dense_map)
+target_link_libraries(benchmark PRIVATE unordered_dense_map)
+
+# Add threading support for concurrent tests and benchmarks
+find_package(Threads REQUIRED)
+target_link_libraries(test_concurrent PRIVATE Threads::Threads)
+target_link_libraries(benchmark PRIVATE Threads::Threads)
 
 # Enable testing
 enable_testing()
 
-# Add test
+# Add tests
 add_test(NAME UnorderedDenseMapTest COMMAND test_unordered_dense_map)
+add_test(NAME ConcurrentTest COMMAND test_concurrent)
 
 # Install targets
 install(TARGETS unordered_dense_map

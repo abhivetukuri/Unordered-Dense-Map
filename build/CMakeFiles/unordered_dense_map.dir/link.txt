@@ -1,2 +1,0 @@
-/usr/bin/ar qc libunordered_dense_map.a CMakeFiles/unordered_dense_map.dir/src/unordered_dense_map.cpp.o
-/usr/bin/ranlib libunordered_dense_map.a
