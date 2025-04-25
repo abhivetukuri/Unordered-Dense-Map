@@ -29,7 +29,7 @@ unordered_dense_map<Key, Value, Hash>::try_emplace(const Key &key, Args &&...arg
 
     // Create copies for potential swapping
     Key kcopy = key;
-    Value vcopy = Value(std::forward<Args>(args)...);
+    Value vcopy{std::forward<Args>(args)...};
 
     // Find insertion position using robin-hood hashing
     while (distance < MAX_DISTANCE)
@@ -51,6 +51,16 @@ unordered_dense_map<Key, Value, Hash>::try_emplace(const Key &key, Args &&...arg
         {
             // Check if it's the same key
             size_t entry_index = bucket.entry_index;
+            
+            // Validate entry index to prevent segfaults
+            if (entry_index >= entries_.size())
+            {
+                // Bucket corruption detected, skip this bucket
+                current_pos = (current_pos + 1) % capacity_;
+                ++distance;
+                continue;
+            }
+            
             if (entries_[entry_index].key == kcopy)
             {
                 return {iterator(this, entry_index), false};
@@ -60,16 +70,25 @@ unordered_dense_map<Key, Value, Hash>::try_emplace(const Key &key, Args &&...arg
         // Robin-hood: if current element has traveled less distance, swap them
         if (bucket.is_occupied() && bucket.distance < distance)
         {
-            // Swap the key-value data in place in the entries array
+            // Validate entry index to prevent segfaults
             size_t entry_index = bucket.entry_index;
+            if (entry_index >= entries_.size())
+            {
+                // Bucket corruption detected, skip this bucket
+                current_pos = (current_pos + 1) % capacity_;
+                ++distance;
+                continue;
+            }
+            
+            // Swap the key-value data in place in the entries array
             std::swap(kcopy, entries_[entry_index].key);
             std::swap(vcopy, entries_[entry_index].value);
-            
+
             // Swap metadata (with proper type conversions)
             uint8_t tmp_fp = fingerprint;
             fingerprint = static_cast<uint8_t>(bucket.fingerprint);
             bucket.fingerprint = tmp_fp;
-            
+
             uint8_t tmp_dist = static_cast<uint8_t>(distance);
             distance = static_cast<size_t>(bucket.distance);
             bucket.distance = tmp_dist;
@@ -81,7 +100,7 @@ unordered_dense_map<Key, Value, Hash>::try_emplace(const Key &key, Args &&...arg
 
     // If we get here, we need to rehash
     rehash(capacity_ * 2);
-    return try_emplace(kcopy, std::move(vcopy));
+    return try_emplace(key, std::forward<Args>(args)...);
 }
 
 template <typename Key, typename Value, typename Hash>
@@ -121,6 +140,16 @@ unordered_dense_map<Key, Value, Hash>::erase(const Key &key)
         if (bucket.is_occupied() && bucket.fingerprint == fingerprint)
         {
             size_t entry_index = bucket.entry_index;
+            
+            // Validate entry index to prevent segfaults
+            if (entry_index >= entries_.size())
+            {
+                // Bucket corruption detected, skip this bucket
+                current_pos = (current_pos + 1) % capacity_;
+                ++distance;
+                continue;
+            }
+            
             if (entries_[entry_index].key == key)
             {
                 // Found the key to delete
@@ -197,6 +226,15 @@ unordered_dense_map<Key, Value, Hash>::find(const Key &key)
         if (bucket.is_occupied() && bucket.fingerprint == fingerprint)
         {
             size_t entry_index = bucket.entry_index;
+            
+            // Validate entry index to prevent segfaults
+            if (entry_index >= entries_.size())
+            {
+                // Bucket corruption detected, skip this bucket
+                current_pos = (current_pos + 1) % capacity_;
+                ++distance;
+                continue;
+            }
 
             if (entries_[entry_index].key == key)
             {
@@ -240,11 +278,11 @@ void unordered_dense_map<Key, Value, Hash>::rehash(size_t new_capacity)
 
 // Batch operations implementation
 template <typename Key, typename Value, typename Hash>
-template<typename InputIt>
+template <typename InputIt>
 void unordered_dense_map<Key, Value, Hash>::batch_insert(InputIt first, InputIt last)
 {
     size_t count = std::distance(first, last);
-    
+
     // Reserve space to minimize reallocations
     if (size_ + count >= capacity_ * MAX_LOAD_FACTOR)
     {
@@ -255,9 +293,9 @@ void unordered_dense_map<Key, Value, Hash>::batch_insert(InputIt first, InputIt 
         }
         rehash(new_capacity);
     }
-    
+
     // For small batches or non-integer keys, use regular insertion
-    if constexpr (!std::is_same_v<Key, int> || count < 16)
+    if (!std::is_same_v<Key, int>)
     {
         for (auto it = first; it != last; ++it)
         {
@@ -272,41 +310,38 @@ void unordered_dense_map<Key, Value, Hash>::batch_insert(InputIt first, InputIt 
         }
         return;
     }
-    
-    // SIMD-optimized path for integer keys
-#if defined(__x86_64__) || defined(_M_X64) || defined(__i386) || defined(_M_IX86)
-    if constexpr (std::is_same_v<Key, int>)
+    if (count < 16)
     {
-        std::vector<int> keys;
-        std::vector<Value> values;
-        keys.reserve(count);
-        values.reserve(count);
-        
         for (auto it = first; it != last; ++it)
         {
             if constexpr (std::is_same_v<typename std::iterator_traits<InputIt>::value_type, std::pair<Key, Value>>)
             {
-                keys.push_back(it->first);
-                values.push_back(it->second);
+                insert(*it);
             }
             else
             {
-                keys.push_back(*it);
-                values.emplace_back();
+                emplace(*it, Value{});
             }
         }
-        
-        // Use vectorized hashing (implementation in .cpp file)
-        for (size_t i = 0; i < count; ++i)
+        return;
+    }
+
+    // Regular insertion for remaining cases
+    for (auto it = first; it != last; ++it)
+    {
+        if constexpr (std::is_same_v<typename std::iterator_traits<InputIt>::value_type, std::pair<Key, Value>>)
         {
-            emplace(std::move(keys[i]), std::move(values[i]));
+            insert(*it);
+        }
+        else
+        {
+            emplace(*it, Value{});
         }
     }
-#endif
 }
 
 template <typename Key, typename Value, typename Hash>
-template<typename InputIt, typename OutputIt>
+template <typename InputIt, typename OutputIt>
 void unordered_dense_map<Key, Value, Hash>::batch_find(InputIt keys_first, InputIt keys_last, OutputIt results_first)
 {
     // For now, implement using regular find
@@ -318,17 +353,17 @@ void unordered_dense_map<Key, Value, Hash>::batch_find(InputIt keys_first, Input
 }
 
 template <typename Key, typename Value, typename Hash>
-template<typename InputIt>
+template <typename InputIt>
 std::vector<bool> unordered_dense_map<Key, Value, Hash>::batch_contains(InputIt first, InputIt last)
 {
     size_t count = std::distance(first, last);
     std::vector<bool> results;
     results.reserve(count);
-    
+
     for (auto it = first; it != last; ++it)
     {
         results.push_back(contains(*it));
     }
-    
+
     return results;
 }

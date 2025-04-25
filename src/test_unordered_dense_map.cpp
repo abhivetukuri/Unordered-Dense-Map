@@ -17,9 +17,9 @@ double benchmark_insertion(const std::vector<std::pair<int, int>> &data)
     MapType map;
     auto start = high_resolution_clock::now();
 
-    for (const auto &[key, value] : data)
+    for (const auto &pair : data)
     {
-        map[key] = value;
+        map[pair.first] = pair.second;
     }
 
     auto end = high_resolution_clock::now();
@@ -42,7 +42,7 @@ double benchmark_lookup(const MapType &map, const std::vector<int> &keys)
             // Prevent compiler from optimizing away the lookup
             if (it != map.end())
             {
-                volatile int dummy = it->second;
+                volatile int dummy = it->value;
                 (void)dummy;
             }
         }
@@ -72,7 +72,7 @@ void test_basic_functionality()
     // Test find
     auto it = map.find(2);
     assert(it != map.end());
-    assert(it->second == "two");
+    assert(it->value == "two");
 
     // Test contains
     assert(map.contains(1));
@@ -84,10 +84,10 @@ void test_basic_functionality()
 
     // Test iteration
     int count = 0;
-    for (const auto &[key, value] : map)
+    for (const auto &entry : map)
     {
         count++;
-        assert(key >= 1 && key <= 3);
+        assert(entry.key >= 1 && entry.key <= 3);
     }
     assert(count == 3);
 
@@ -122,7 +122,7 @@ void test_string_keys()
     // Test find with string
     auto it = map.find("banana");
     assert(it != map.end());
-    assert(it->second == 2);
+    assert(it->value == 2);
 
     // Test erase
     assert(map.erase("apple") == 1);
@@ -149,7 +149,7 @@ void test_robin_hood_hashing()
     // Check key 12 specifically
     auto it12 = map.find(12);
     assert(it12 != map.end());
-    assert(it12->second == 24);
+    assert(it12->value == 24);
 
     // Verify all elements are still accessible
     for (int i = 0; i < 100; ++i)
@@ -160,9 +160,9 @@ void test_robin_hood_hashing()
             std::cout << "ERROR: Key " << i << " not found!" << std::endl;
             assert(false);
         }
-        if (it->second != i * 2)
+        if (it->value != i * 2)
         {
-            std::cout << "ERROR: Key " << i << " has wrong value. Expected: " << (i * 2) << ", Got: " << it->second << std::endl;
+            std::cout << "ERROR: Key " << i << " has wrong value. Expected: " << (i * 2) << ", Got: " << it->value << std::endl;
             assert(false);
         }
     }
@@ -177,7 +177,7 @@ void test_robin_hood_hashing()
         int key = dis(gen);
         auto it = map.find(key);
         assert(it != map.end());
-        assert(it->second == key * 2);
+        assert(it->value == key * 2);
     }
 
     std::cout << "✓ Robin-hood hashing tests passed!" << std::endl;
@@ -210,7 +210,7 @@ void test_backward_shift_deletion()
     {
         auto it = map.find(i);
         assert(it != map.end());
-        assert(it->second == i * 2);
+        assert(it->value == i * 2);
     }
 
     for (int i = 30; i < 100; ++i)
@@ -221,9 +221,9 @@ void test_backward_shift_deletion()
             std::cout << "ERROR: Could not find key " << i << std::endl;
             assert(false);
         }
-        if (it->second != i * 2)
+        if (it->value != i * 2)
         {
-            std::cout << "ERROR: Key " << i << " has wrong value. Expected: " << (i * 2) << ", Got: " << it->second << std::endl;
+            std::cout << "ERROR: Key " << i << " has wrong value. Expected: " << (i * 2) << ", Got: " << it->value << std::endl;
             assert(false);
         }
     }
@@ -281,10 +281,10 @@ void performance_comparison()
     unordered_dense_map<int, int> dense_map;
     std::unordered_map<int, int> std_map;
 
-    for (const auto &[key, value] : data)
+    for (const auto &pair : data)
     {
-        dense_map[key] = value;
-        std_map[key] = value;
+        dense_map[pair.first] = pair.second;
+        std_map[pair.first] = pair.second;
     }
 
     double dense_lookup_time = benchmark_lookup(dense_map, lookup_keys);
@@ -337,7 +337,7 @@ void test_simd_optimizations()
         int key = i * 256;
         auto it = map.find(key);
         assert(it != map.end());
-        assert(it->second == i);
+        assert(it->value == i);
     }
 
     std::cout << "✓ SIMD optimization tests passed!" << std::endl;

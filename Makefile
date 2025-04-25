@@ -1,5 +1,5 @@
 CXX = clang++
-CXXFLAGS = -std=c++20 -O3 -march=native -Wall -Wextra -pthread
+CXXFLAGS = -std=c++20 -O1 -g -Wall -Wextra -pthread -fsanitize=address -fsanitize=undefined
 INCLUDES = -Iinclude
 
 # Targets
@@ -34,9 +34,17 @@ test: $(TARGET) $(CONCURRENT_TARGET)
 	./$(CONCURRENT_TARGET)
 
 # Run benchmarks
-benchmark: $(BENCHMARK_TARGET)
+run-benchmark: $(BENCHMARK_TARGET)
 	@echo "Running performance benchmarks..."
 	./$(BENCHMARK_TARGET)
+
+# Build test compilation
+test_compile: src/unordered_dense_map.cpp test_compile.cpp
+	$(CXX) $(CXXFLAGS) $(INCLUDES) test_compile.cpp src/unordered_dense_map.cpp -o test_compile
+
+# Build safe benchmark
+safe_benchmark: src/unordered_dense_map.cpp safe_benchmark.cpp
+	$(CXX) $(CXXFLAGS) $(INCLUDES) safe_benchmark.cpp src/unordered_dense_map.cpp -o safe_benchmark
 
 # Clean build artifacts
 clean:
@@ -57,4 +65,4 @@ uninstall:
 	@sudo rm -f /usr/local/include/unordered_dense_map_impl.hpp
 	@echo "Uninstallation complete!"
 
-.PHONY: all test benchmark clean install uninstall 
+.PHONY: all test benchmark run-benchmark clean install uninstall 

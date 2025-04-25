@@ -1,4 +1,5 @@
 #include "../include/unordered_dense_map.hpp"
+#include "../include/unordered_dense_map_impl.hpp"
 #include "../include/concurrent_unordered_dense_map.hpp"
 #include <unordered_map>
 #include <chrono>
@@ -8,6 +9,7 @@
 #include <iomanip>
 #include <thread>
 #include <numeric>
+#include <cmath>
 
 using namespace std::chrono;
 

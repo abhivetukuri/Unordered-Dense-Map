@@ -9,6 +9,8 @@
 #include <string>
 #include <limits>
 #include <stdexcept>
+#include <iterator>
+#include <algorithm>
 
 // Forward declarations for non-template implementations
 namespace detail
@@ -113,7 +115,7 @@ private:
 public:
     using key_type = Key;
     using mapped_type = Value;
-    using value_type = std::pair<const Key, Value>;
+    using value_type = Entry;  // Simplified to use Entry directly
     using size_type = size_t;
 
     // Constructors
@@ -135,7 +137,7 @@ public:
     Value &operator[](const Key &key)
     {
         auto [it, inserted] = try_emplace(key, Value{});
-        return it->second;
+        return it->value;
     }
 
     Value &at(const Key &key)
@@ -143,7 +145,7 @@ public:
         auto it = find(key);
         if (it == end())
             throw std::out_of_range("Key not found");
-        return it->second;
+        return it->value;
     }
 
     const Value &at(const Key &key) const
@@ -151,10 +153,10 @@ public:
         auto it = find(key);
         if (it == end())
             throw std::out_of_range("Key not found");
-        return it->second;
+        return it->value;
     }
 
-    // Iterators
+    // Simple iterator that returns references to Entry objects
     class iterator
     {
     public:
@@ -163,8 +165,15 @@ public:
 
         iterator(unordered_dense_map *map, size_t index) : map_(map), index_(index) {}
 
-        value_type &operator*() { return reinterpret_cast<value_type &>(map_->entries_[index_]); }
-        value_type *operator->() { return reinterpret_cast<value_type *>(&map_->entries_[index_]); }
+        Entry& operator*() { 
+            if (index_ >= map_->entries_.size()) throw std::out_of_range("Iterator out of bounds");
+            return map_->entries_[index_]; 
+        }
+        Entry* operator->() { 
+            if (index_ >= map_->entries_.size()) throw std::out_of_range("Iterator out of bounds");
+            return &map_->entries_[index_]; 
+        }
+        
         iterator &operator++()
         {
             ++index_;
@@ -188,8 +197,15 @@ public:
 
         const_iterator(const unordered_dense_map *map, size_t index) : map_(map), index_(index) {}
 
-        const value_type &operator*() const { return reinterpret_cast<const value_type &>(map_->entries_[index_]); }
-        const value_type *operator->() const { return reinterpret_cast<const value_type *>(&map_->entries_[index_]); }
+        const Entry& operator*() const { 
+            if (index_ >= map_->entries_.size()) throw std::out_of_range("Iterator out of bounds");
+            return map_->entries_[index_]; 
+        }
+        const Entry* operator->() const { 
+            if (index_ >= map_->entries_.size()) throw std::out_of_range("Iterator out of bounds");
+            return &map_->entries_[index_]; 
+        }
+        
         const_iterator &operator++()
         {
             ++index_;
@@ -213,14 +229,24 @@ public:
     const_iterator cend() const { return const_iterator(this, size_); }
 
     // Modifiers
-    std::pair<iterator, bool> insert(const value_type &value) { return emplace(value.first, value.second); }
-    std::pair<iterator, bool> insert(value_type &&value) { return emplace(std::move(value.first), std::move(value.second)); }
+    std::pair<iterator, bool> insert(const value_type &value) { return emplace(value.key, value.value); }
+    std::pair<iterator, bool> insert(value_type &&value) { return emplace(std::move(value.key), std::move(value.value)); }
+    
+    // Support for pair insertion too
+    std::pair<iterator, bool> insert(const std::pair<Key, Value> &p) { return emplace(p.first, p.second); }
+    std::pair<iterator, bool> insert(std::pair<Key, Value> &&p) { return emplace(std::move(p.first), std::move(p.second)); }
+    
+    // Support for direct key-value insertion (for compatibility with benchmark)
+    std::pair<iterator, bool> insert(const Key& key, const Value& value) { return emplace(key, value); }
 
-    template <typename... Args>
-    std::pair<iterator, bool> emplace(Args &&...args)
+    std::pair<iterator, bool> emplace(const Key& key, const Value& value)
     {
-        Entry entry(std::forward<Args>(args)...);
-        return try_emplace(std::move(entry.key), std::move(entry.value));
+        return try_emplace(key, value);
+    }
+    
+    std::pair<iterator, bool> emplace(Key&& key, Value&& value)
+    {
+        return try_emplace(std::move(key), std::move(value));
     }
 
     template <typename... Args>
