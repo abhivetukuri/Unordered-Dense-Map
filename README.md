@@ -39,10 +39,10 @@ The template-only design ensures that using this hash table is as fast as hand-o
 ## Key Features
 
 ### 🚀 High Performance
-- **3-5x faster** insertion compared to `std::unordered_map`
-- **2-4x faster** lookup performance
-- **10-20x faster** iteration due to dense memory layout
-- SIMD-optimized batch operations for bulk processing
+- **1.11x faster** insertion compared to `std::unordered_map`
+- **1.20x faster** iteration due to dense memory layout
+- **1.59x faster** batch insertion for bulk processing
+- **1.50x more memory efficient**
 
 ### 🧠 Cache-Friendly Design
 - Dense storage separates metadata from data for better cache utilization
@@ -79,7 +79,7 @@ The template-only design ensures that using this hash table is as fast as hand-o
 ### Space Complexity
 - **Memory overhead**: ~8 bytes per bucket + entry storage
 - **Load factor**: Maintained at 75% for optimal performance
-- **Memory efficiency**: 2-3x more efficient than `std::unordered_map`
+- **Memory efficiency**: 1.5x more efficient than `std::unordered_map`
 
 ## Architecture & Design
 
@@ -217,17 +217,17 @@ unordered_dense_map<MyCustomType, int> custom_map;
 
 | Operation | std::unordered_map | unordered_dense_map | Improvement |
 |-----------|-------------------|---------------------|-------------|
-| Insertion | 45.2 ms | 12.3 ms | **3.7x faster** |
-| Lookup | 38.1 ms | 15.7 ms | **2.4x faster** |
-| Iteration | 125.4 ms | 6.8 ms | **18.4x faster** |
-| Memory Usage | ~2.1 MB | ~0.8 MB | **2.6x less memory** |
+| Insertion | 31.5 ms | 28.5 ms | **1.11x faster** |
+| Lookup | 3.51 ms | 4.25 ms | **0.83x faster** |
+| Iteration | 1.02 ms | 0.85 ms | **1.20x faster** |
+| Memory Usage | ~2.34 MB | ~1.56 MB | **1.50x more efficient** |
 
 ### Batch Operations Performance
 
 | Operation | Individual Ops | Batch Ops | Improvement |
 |-----------|----------------|-----------|-------------|
-| Insertion (10K elements) | 4.5 ms | 2.1 ms | **2.1x faster** |
-| Lookup (10K elements) | 3.8 ms | 1.9 ms | **2.0x faster** |
+| Insertion (100K elements) | 28.5 ms | 19.8 ms | **1.59x faster** |
+| Lookup (50K elements) | 4.25 ms | 7.0 ms | **0.50x faster** |
 
 ### Concurrent Performance (8 threads, 80,000 ops total)
 
@@ -245,19 +245,19 @@ Memory layout comparison (100,000 int->int pairs):
 std::unordered_map:
 ├── Buckets: ~800 KB (sparse array + pointers)
 ├── Nodes: ~1,600 KB (individual allocations)
-└── Total: ~2,400 KB
+└── Total: ~2,343 KB
 
 unordered_dense_map:
 ├── Buckets: ~800 KB (dense metadata array)  
 ├── Entries: ~800 KB (dense key-value array)
-└── Total: ~1,600 KB (33% less memory)
+└── Total: ~1,562 KB (33% less memory)
 ```
 
 ### Cache Performance
 
 The dense storage layout provides significant cache advantages:
 
-- **Iteration**: 18x faster due to sequential memory access
+- **Iteration**: 1.20x faster due to sequential memory access
 - **Bulk operations**: SIMD vectorization possible due to dense layout
 - **Memory bandwidth**: Better utilization of cache lines
 - **TLB efficiency**: Fewer page table entries needed
