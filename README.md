@@ -134,20 +134,16 @@ Hash Table
 ```cpp
 #include "unordered_dense_map.hpp"
 
-// Create a map
 unordered_dense_map<int, std::string> map;
 
-// Insert elements
 map.emplace(1, "hello");
 map.emplace(2, "world");
 
-// Lookup
 auto it = map.find(1);
 if (it != map.end()) {
     std::cout << it->second << std::endl; // "hello"
 }
 
-// Iteration (very fast due to dense storage)
 for (const auto& [key, value] : map) {
     std::cout << key << ": " << value << std::endl;
 }
@@ -156,13 +152,12 @@ for (const auto& [key, value] : map) {
 ### Batch Operations
 
 ```cpp
-// Batch insertion for improved performance
+
 std::vector<std::pair<int, std::string>> data = {
     {1, "one"}, {2, "two"}, {3, "three"}
 };
 map.batch_insert(data.begin(), data.end());
 
-// Batch lookup
 std::vector<int> keys = {1, 2, 3, 4, 5};
 std::vector<bool> results = map.batch_contains(keys.begin(), keys.end());
 ```
@@ -175,7 +170,6 @@ std::vector<bool> results = map.batch_contains(keys.begin(), keys.end());
 
 concurrent_unordered_dense_map<int, int> concurrent_map;
 
-// Multiple threads can safely insert
 std::vector<std::thread> threads;
 for (int t = 0; t < 8; ++t) {
     threads.emplace_back([&, t]() {
@@ -193,12 +187,11 @@ for (auto& thread : threads) {
 ### Custom Hash Functions
 
 ```cpp
-// Specialize hash traits for custom types
+
 namespace detail {
 template<>
 struct hash_traits<MyCustomType> {
     static uint64_t hash(const MyCustomType& key) {
-        // Custom hash implementation
         return WyHash::hash(&key.data, sizeof(key.data));
     }
     
@@ -283,16 +276,13 @@ make -j
 ### Using Makefile
 
 ```bash
-# Build all targets
+
 make all
 
-# Run tests
 make test
 
-# Run benchmarks  
 make benchmark
 
-# Clean build artifacts
 make clean
 ```
 
@@ -316,22 +306,19 @@ clang++ -std=c++20 -O3 -march=native your_code.cpp src/unordered_dense_map.cpp
 
 #### Core Operations
 ```cpp
-// Construction
+
 unordered_dense_map();
 unordered_dense_map(size_t initial_capacity);
 
-// Element access
 iterator find(const Key& key);
 const_iterator find(const Key& key) const;
 bool contains(const Key& key) const;
 
-// Modification
 std::pair<iterator, bool> emplace(Key&& key, Value&& value);
 std::pair<iterator, bool> try_emplace(const Key& key, Args&&... args);
 size_type erase(const Key& key);
 void clear();
 
-// Capacity
 size_type size() const;
 bool empty() const;
 void reserve(size_type count);
@@ -363,13 +350,12 @@ const_iterator cend() const;
 
 #### Thread-Safe Operations
 ```cpp
-// All operations are thread-safe
+
 bool insert(const Key& key, const Value& value);
 bool contains(const Key& key) const;
 bool erase(const Key& key);
 size_type size() const;
 
-// Read-only iteration (may see inconsistent state during modifications)
 const_iterator find(const Key& key) const;
 const_iterator begin() const;
 const_iterator end() const;
@@ -386,7 +372,6 @@ namespace detail {
 class WyHash {
 public:
     static uint64_t hash(const void* key, size_t len, uint64_t seed = 0);
-    // Optimized for speed and quality, passes SMHasher tests
 };
 }
 ```
@@ -402,7 +387,7 @@ Conditional compilation enables SIMD paths:
 
 ```cpp
 #if defined(__x86_64__) && defined(USE_AVX2)
-// AVX2-optimized batch operations
+
 void batch_hash_int(const int* keys, uint64_t* hashes, size_t count);
 void batch_fingerprint(const uint64_t* hashes, uint8_t* fingerprints, size_t count);
 #endif
@@ -415,13 +400,11 @@ The core insertion loop with Robin-Hood swapping:
 ```cpp
 while (distance < MAX_DISTANCE) {
     if (bucket.is_occupied() && bucket.distance < distance) {
-        // Robin-Hood: swap with richer element
         std::swap(key, entries_[bucket.entry_index].key);
         std::swap(value, entries_[bucket.entry_index].value);
         std::swap(fingerprint, bucket.fingerprint);
         std::swap(distance, bucket.distance);
     }
-    // Continue probing...
 }
 ```
 
@@ -463,7 +446,7 @@ struct AtomicBucket {
 ### Compiler Optimization
 
 ```bash
-# Recommended compilation flags
+
 -std=c++20 -O3 -march=native -DNDEBUG
 
 # Enable SIMD optimizations
@@ -514,7 +497,7 @@ Contributions are welcome! Please ensure:
 ### Development Workflow
 
 ```bash
-# Build and test
+
 make clean && make all
 make test
 make benchmark
