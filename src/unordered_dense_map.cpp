@@ -11,7 +11,6 @@
 namespace detail
 {
 
-    // WyHash implementation for fast hashing
     uint64_t WyHash::hash(const void *key, size_t len, uint64_t seed)
     {
         static constexpr uint64_t wyhash64_a = 0x3b3897599180e0c5ULL;
@@ -90,7 +89,6 @@ namespace detail
         return r;
     }
 
-// SIMD-optimized hash mixing for poor-quality hashes
 #if UNORDERED_DENSE_MAP_SIMD
     uint64_t mix_hash(uint64_t hash)
     {
@@ -117,7 +115,6 @@ namespace detail
     }
 #endif
 
-    // Specialization for string types
     uint64_t hash_traits<std::string>::hash(const std::string &key)
     {
         return WyHash::hash(key.data(), key.size());
@@ -129,26 +126,21 @@ namespace detail
         return static_cast<uint8_t>(h & 0xFF);
     }
 
-// Vectorized batch operations
 #if UNORDERED_DENSE_MAP_SIMD
     namespace simd
     {
 
-        // SIMD-optimized batch hash computation for integers
         void batch_hash_int(const int *keys, uint64_t *hashes, size_t count)
         {
-            constexpr size_t simd_width = 4; // Process 4 integers at once with AVX2
+            constexpr size_t simd_width = 4;
             size_t simd_count = (count / simd_width) * simd_width;
 
             for (size_t i = 0; i < simd_count; i += simd_width)
             {
-                // Load 4 integers
                 __m128i keys_vec = _mm_loadu_si128(reinterpret_cast<const __m128i *>(&keys[i]));
 
-                // Convert to 64-bit for hashing
                 __m256i keys64 = _mm256_cvtepi32_epi64(keys_vec);
 
-                // Simple hash computation (in practice, this would call WyHash for each)
                 for (int j = 0; j < 4; ++j)
                 {
                     int key = keys[i + j];
@@ -156,14 +148,12 @@ namespace detail
                 }
             }
 
-            // Handle remaining elements
             for (size_t i = simd_count; i < count; ++i)
             {
                 hashes[i] = WyHash::hash(&keys[i], sizeof(keys[i]));
             }
         }
 
-        // SIMD-optimized fingerprint extraction
         void batch_fingerprint(const uint64_t *hashes, uint8_t *fingerprints, size_t count)
         {
             constexpr size_t simd_width = 4;
@@ -173,21 +163,17 @@ namespace detail
             {
                 __m256i hashes_vec = _mm256_loadu_si256(reinterpret_cast<const __m256i *>(&hashes[i]));
 
-                // Extract low 8 bits from each hash
                 __m256i mask = _mm256_set1_epi64x(0xFF);
                 __m256i fingerprints_64 = _mm256_and_si256(hashes_vec, mask);
 
-                // Pack to 8-bit values
                 __m128i fingerprints_32 = _mm256_cvtepi64_epi32(fingerprints_64);
                 __m128i fingerprints_16 = _mm_packus_epi32(fingerprints_32, fingerprints_32);
                 __m128i fingerprints_8 = _mm_packus_epi16(fingerprints_16, fingerprints_16);
 
-                // Store result
                 uint32_t result = _mm_cvtsi128_si32(fingerprints_8);
                 memcpy(&fingerprints[i], &result, 4);
             }
 
-            // Handle remaining elements
             for (size_t i = simd_count; i < count; ++i)
             {
                 fingerprints[i] = static_cast<uint8_t>(hashes[i] & 0xFF);

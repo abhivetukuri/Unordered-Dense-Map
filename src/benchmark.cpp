@@ -105,7 +105,6 @@ void benchmark_insertion(size_t num_elements = 100000, size_t iterations = 5)
         values.push_back(i);
     }
 
-    // std::unordered_map benchmark
     auto std_result = benchmark_function([&]()
                                          {
         std::unordered_map<int, int> map;
@@ -114,7 +113,6 @@ void benchmark_insertion(size_t num_elements = 100000, size_t iterations = 5)
         } }, iterations, num_elements);
     results.print_result("std::unordered_map", std_result);
 
-    // unordered_dense_map benchmark
     auto dense_result = benchmark_function([&]()
                                            {
         unordered_dense_map<int, int> map;
@@ -123,7 +121,6 @@ void benchmark_insertion(size_t num_elements = 100000, size_t iterations = 5)
         } }, iterations, num_elements);
     results.print_result("unordered_dense_map", dense_result);
 
-    // concurrent_unordered_dense_map benchmark (single-threaded) - DISABLED due to bugs
     /*
     auto concurrent_result = benchmark_function([&]()
                                                  {
@@ -176,19 +173,15 @@ void benchmark_lookup(size_t num_elements = 100000, size_t lookup_count = 50000,
         lookup_keys.push_back(keys[gen() % num_elements]);
     }
 
-    // Prepare data structures
     std::unordered_map<int, int> std_map;
     unordered_dense_map<int, int> dense_map;
-    // concurrent_unordered_dense_map<int, int> concurrent_map; // DISABLED due to bugs
 
     for (size_t i = 0; i < num_elements; ++i)
     {
         std_map[keys[i]] = i;
         dense_map.emplace(keys[i], i);
-        // concurrent_map.insert(keys[i], i); // DISABLED due to bugs
     }
 
-    // std::unordered_map lookup
     auto std_result = benchmark_function([&]()
                                          {
         long long sum = 0;
@@ -200,7 +193,6 @@ void benchmark_lookup(size_t num_elements = 100000, size_t lookup_count = 50000,
         } }, iterations, lookup_count);
     results.print_result("std::unordered_map", std_result);
 
-    // unordered_dense_map lookup
     auto dense_result = benchmark_function([&]()
                                            {
         long long sum = 0;
@@ -256,7 +248,6 @@ void benchmark_iteration(size_t num_elements = 100000, size_t iterations = 10)
         keys.push_back(dis(gen));
     }
 
-    // Prepare data structures
     std::unordered_map<int, int> std_map;
     unordered_dense_map<int, int> dense_map;
 
@@ -299,7 +290,6 @@ void benchmark_concurrent_operations()
 
     std::cout << "Threads: " << num_threads << ", Operations per thread: " << operations_per_thread << std::endl;
 
-    // Single-threaded concurrent map (baseline)
     auto single_result = benchmark_function([&]()
                                             {
         concurrent_unordered_dense_map<int, int> map;
@@ -308,7 +298,6 @@ void benchmark_concurrent_operations()
         } }, 3, total_operations);
     results.print_result("Single-threaded", single_result);
 
-    // Multi-threaded concurrent map
     auto multi_result = benchmark_function([&]()
                                            {
         concurrent_unordered_dense_map<int, int> map;
@@ -329,12 +318,10 @@ void benchmark_concurrent_operations()
         } }, 3, total_operations);
     results.print_result("Multi-threaded", multi_result);
 
-    // Mixed operations benchmark
     auto mixed_result = benchmark_function([&]()
                                            {
         concurrent_unordered_dense_map<int, int> map;
         
-        // Pre-populate with some data
         for (size_t i = 0; i < total_operations / 4; ++i) {
             map.insert(i, i);
         }
@@ -388,7 +375,6 @@ void benchmark_memory_usage()
 
     const size_t num_elements = 100000;
 
-    // Calculate theoretical memory usage
     size_t std_map_overhead = sizeof(std::unordered_map<int, int>) +
                               num_elements * (sizeof(std::pair<const int, int>) + sizeof(void *) * 2); // bucket overhead
 
@@ -422,7 +408,6 @@ int main()
 
     try
     {
-        // Run all benchmarks
         benchmark_insertion(100000, 5);
         benchmark_lookup(100000, 50000, 5);
         benchmark_iteration(100000, 10);

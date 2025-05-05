@@ -12,13 +12,13 @@
 #include <iterator>
 #include <algorithm>
 
-// Forward declarations for non-template implementations
 namespace detail
 {
     class WyHash
     {
     public:
         static uint64_t hash(const void *key, size_t len, uint64_t seed = 0);
+
     private:
         static uint64_t wyhash64_mum(uint64_t A, uint64_t B);
         static uint64_t wyhash64_read(const uint8_t *p, size_t k);
@@ -37,17 +37,16 @@ namespace detail
             return static_cast<uint8_t>(h & 0xFF);
         }
     };
-    
+
     template <>
     struct hash_traits<std::string>
     {
         static uint64_t hash(const std::string &key);
         static uint8_t fingerprint(const std::string &key);
     };
-    
+
     uint64_t mix_hash(uint64_t hash);
 
-    // 8-byte bucket structure with fingerprinting and entry index
     struct Bucket
     {
         uint64_t fingerprint : 8;  // 8-bit fingerprint for quick comparison
@@ -88,7 +87,6 @@ namespace detail
     };
 }
 
-// Main template class
 template <typename Key, typename Value, typename Hash = detail::hash_traits<Key>>
 class unordered_dense_map
 {
@@ -115,10 +113,9 @@ private:
 public:
     using key_type = Key;
     using mapped_type = Value;
-    using value_type = Entry;  // Simplified to use Entry directly
+    using value_type = Entry;
     using size_type = size_t;
 
-    // Constructors
     unordered_dense_map() : size_(0), capacity_(INITIAL_CAPACITY)
     {
         buckets_.resize(capacity_);
@@ -128,12 +125,10 @@ public:
     unordered_dense_map &operator=(const unordered_dense_map &other) = default;
     unordered_dense_map &operator=(unordered_dense_map &&other) = default;
 
-    // Capacity
     bool empty() const { return size_ == 0; }
     size_type size() const { return size_; }
     size_type max_size() const { return std::numeric_limits<size_type>::max(); }
 
-    // Element access
     Value &operator[](const Key &key)
     {
         auto [it, inserted] = try_emplace(key, Value{});
@@ -156,7 +151,6 @@ public:
         return it->value;
     }
 
-    // Simple iterator that returns references to Entry objects
     class iterator
     {
     public:
@@ -165,15 +159,19 @@ public:
 
         iterator(unordered_dense_map *map, size_t index) : map_(map), index_(index) {}
 
-        Entry& operator*() { 
-            if (index_ >= map_->entries_.size()) throw std::out_of_range("Iterator out of bounds");
-            return map_->entries_[index_]; 
+        Entry &operator*()
+        {
+            if (index_ >= map_->entries_.size())
+                throw std::out_of_range("Iterator out of bounds");
+            return map_->entries_[index_];
         }
-        Entry* operator->() { 
-            if (index_ >= map_->entries_.size()) throw std::out_of_range("Iterator out of bounds");
-            return &map_->entries_[index_]; 
+        Entry *operator->()
+        {
+            if (index_ >= map_->entries_.size())
+                throw std::out_of_range("Iterator out of bounds");
+            return &map_->entries_[index_];
         }
-        
+
         iterator &operator++()
         {
             ++index_;
@@ -197,15 +195,19 @@ public:
 
         const_iterator(const unordered_dense_map *map, size_t index) : map_(map), index_(index) {}
 
-        const Entry& operator*() const { 
-            if (index_ >= map_->entries_.size()) throw std::out_of_range("Iterator out of bounds");
-            return map_->entries_[index_]; 
+        const Entry &operator*() const
+        {
+            if (index_ >= map_->entries_.size())
+                throw std::out_of_range("Iterator out of bounds");
+            return map_->entries_[index_];
         }
-        const Entry* operator->() const { 
-            if (index_ >= map_->entries_.size()) throw std::out_of_range("Iterator out of bounds");
-            return &map_->entries_[index_]; 
+        const Entry *operator->() const
+        {
+            if (index_ >= map_->entries_.size())
+                throw std::out_of_range("Iterator out of bounds");
+            return &map_->entries_[index_];
         }
-        
+
         const_iterator &operator++()
         {
             ++index_;
@@ -228,23 +230,20 @@ public:
     const_iterator cbegin() const { return const_iterator(this, 0); }
     const_iterator cend() const { return const_iterator(this, size_); }
 
-    // Modifiers
     std::pair<iterator, bool> insert(const value_type &value) { return emplace(value.key, value.value); }
     std::pair<iterator, bool> insert(value_type &&value) { return emplace(std::move(value.key), std::move(value.value)); }
-    
-    // Support for pair insertion too
+
     std::pair<iterator, bool> insert(const std::pair<Key, Value> &p) { return emplace(p.first, p.second); }
     std::pair<iterator, bool> insert(std::pair<Key, Value> &&p) { return emplace(std::move(p.first), std::move(p.second)); }
-    
-    // Support for direct key-value insertion (for compatibility with benchmark)
-    std::pair<iterator, bool> insert(const Key& key, const Value& value) { return emplace(key, value); }
 
-    std::pair<iterator, bool> emplace(const Key& key, const Value& value)
+    std::pair<iterator, bool> insert(const Key &key, const Value &value) { return emplace(key, value); }
+
+    std::pair<iterator, bool> emplace(const Key &key, const Value &value)
     {
         return try_emplace(key, value);
     }
-    
-    std::pair<iterator, bool> emplace(Key&& key, Value&& value)
+
+    std::pair<iterator, bool> emplace(Key &&key, Value &&value)
     {
         return try_emplace(std::move(key), std::move(value));
     }
@@ -261,25 +260,22 @@ public:
         size_ = 0;
     }
 
-    // Lookup
     iterator find(const Key &key);
     const_iterator find(const Key &key) const;
     size_type count(const Key &key) const { return find(key) != end() ? 1 : 0; }
     bool contains(const Key &key) const { return find(key) != end(); }
-    
-    // Batch operations (SIMD optimized when available)
-    template<typename InputIt>
+
+    template <typename InputIt>
     void batch_insert(InputIt first, InputIt last);
-    
-    template<typename InputIt, typename OutputIt>
+
+    template <typename InputIt, typename OutputIt>
     void batch_find(InputIt keys_first, InputIt keys_last, OutputIt results_first);
-    
-    template<typename InputIt>
+
+    template <typename InputIt>
     std::vector<bool> batch_contains(InputIt first, InputIt last);
 
 private:
     void rehash(size_t new_capacity);
 };
 
-// Template method implementations
 #include "unordered_dense_map_impl.hpp"

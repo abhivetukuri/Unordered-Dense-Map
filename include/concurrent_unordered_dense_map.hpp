@@ -8,7 +8,6 @@
 #include <array>
 #include <cstring>
 
-// Lock-free concurrent hash table using epoch-based memory management
 template <typename Key, typename Value, typename Hash = detail::hash_traits<Key>>
 class concurrent_unordered_dense_map
 {
@@ -16,14 +15,12 @@ private:
     static constexpr size_t INITIAL_CAPACITY = 16;
     static constexpr float MAX_LOAD_FACTOR = 0.75f;
     static constexpr size_t MAX_DISTANCE = 255;
-    static constexpr size_t SEGMENT_COUNT = 64; // Number of segments for fine-grained locking
+    static constexpr size_t SEGMENT_COUNT = 64;
 
-    // Atomic bucket for lock-free operations
     struct AtomicBucket
     {
         std::atomic<uint64_t> data{0}; // Packed: fingerprint|distance|occupied|tombstone|entry_index
 
-        // Pack/unpack methods for atomic operations
         static uint64_t pack(uint8_t fingerprint, uint8_t distance, bool occupied, bool tombstone, uint64_t entry_index)
         {
             return (static_cast<uint64_t>(fingerprint) << 56) |
@@ -74,14 +71,13 @@ private:
     {
         Key key;
         Value value;
-        std::atomic<bool> valid{true}; // For lock-free deletion
+        std::atomic<bool> valid{true};
 
         Entry() = default;
         Entry(const Key &k, const Value &v) : key(k), value(v) {}
         Entry(Key &&k, Value &&v) : key(std::move(k)), value(std::move(v)) {}
     };
 
-    // Segment for fine-grained locking approach (fallback when pure lock-free is too complex)
     struct Segment
     {
         std::atomic<size_t> size{0};
@@ -89,7 +85,7 @@ private:
         std::unique_ptr<AtomicBucket[]> buckets;
         std::atomic<Entry *> entries{nullptr};
         std::atomic<size_t> entries_capacity{0};
-        mutable std::shared_mutex mutex; // For resize operations only
+        mutable std::shared_mutex mutex;
 
         Segment()
         {
@@ -103,7 +99,6 @@ private:
             delete[] entries.load();
         }
 
-        // Non-copyable, non-movable for simplicity
         Segment(const Segment &) = delete;
         Segment &operator=(const Segment &) = delete;
         Segment(Segment &&) = delete;
@@ -113,7 +108,6 @@ private:
     std::array<std::unique_ptr<Segment>, SEGMENT_COUNT> segments_;
     std::atomic<size_t> total_size_{0};
 
-    // Get segment index for a key
     size_t get_segment_index(const Key &key) const
     {
         uint64_t hash = Hash::hash(key);
@@ -126,7 +120,6 @@ public:
     using value_type = std::pair<const Key, Value>;
     using size_type = size_t;
 
-    // Concurrent iterator (read-only, may see inconsistent state during modifications)
     class const_iterator
     {
     public:
@@ -151,7 +144,6 @@ public:
 
         const_iterator &operator++()
         {
-            // Move to next valid entry
             find_next_valid();
             return *this;
         }
@@ -169,8 +161,6 @@ public:
     private:
         void find_next_valid()
         {
-            // Implementation to find next valid entry across segments
-            // Simplified for this example
             ++entry_idx_;
             while (segment_idx_ < SEGMENT_COUNT)
             {
@@ -182,13 +172,12 @@ public:
                     const Entry *entries = segment->entries.load();
                     if (entries[entry_idx_].valid.load())
                     {
-                        return; // Found valid entry
+                        return;
                     }
                     ++entry_idx_;
                 }
                 else
                 {
-                    // Move to next segment
                     ++segment_idx_;
                     entry_idx_ = 0;
                 }
@@ -204,7 +193,6 @@ public:
         }
     }
 
-    // Basic operations
     bool contains(const Key &key) const
     {
         return find(key) != end();
@@ -229,7 +217,7 @@ public:
 
             if (bucket_data.is_empty())
             {
-                break; // Key not found
+                break;
             }
 
             if (bucket_data.is_tombstone())
@@ -262,27 +250,21 @@ public:
         size_t seg_idx = get_segment_index(key);
         auto &segment = segments_[seg_idx];
 
-        // For simplicity, use a shared lock for the entire operation
-        // In a production implementation, this would be more sophisticated
         std::shared_lock<std::shared_mutex> lock(segment->mutex);
 
-        // Check if key already exists
         if (find(key) != end())
         {
-            return false; // Key already exists
+            return false;
         }
 
-        // Check if resize is needed
         size_t current_size = segment->size.load();
         size_t current_capacity = segment->capacity.load();
 
         if (current_size >= current_capacity * MAX_LOAD_FACTOR)
         {
-            // Need to resize - upgrade to exclusive lock
             lock.unlock();
             std::unique_lock<std::shared_mutex> exclusive_lock(segment->mutex);
 
-            // Double-check after acquiring exclusive lock
             if (segment->size.load() >= segment->capacity.load() * MAX_LOAD_FACTOR)
             {
                 resize_segment(*segment);
@@ -292,7 +274,6 @@ public:
             lock = std::shared_lock<std::shared_mutex>(segment->mutex);
         }
 
-        // Perform insertion using lock-free techniques
         return insert_in_segment(*segment, key, value);
     }
 
@@ -309,11 +290,9 @@ public:
             return false;
         }
 
-        // Mark entry as invalid (lock-free deletion)
         Entry *entries = segment->entries.load();
         entries[it.entry_idx_].valid.store(false, std::memory_order_release);
 
-        // Mark bucket as tombstone
         size_t capacity = segment->capacity.load();
         uint64_t hash = Hash::hash(key);
         uint8_t fingerprint = Hash::fingerprint(key);
@@ -330,7 +309,6 @@ public:
                 bucket_data.fingerprint == fingerprint &&
                 bucket_data.entry_index == it.entry_idx_)
             {
-                // Mark as tombstone
                 uint64_t tombstone_data = AtomicBucket::pack(fingerprint, bucket_data.distance, false, true, bucket_data.entry_index);
                 uint64_t expected = bucket->data.load();
                 bucket->compare_exchange_weak(expected, tombstone_data);
@@ -360,7 +338,7 @@ public:
         const_iterator it(this, 0, 0);
         if (segments_[0]->size.load() == 0 || !segments_[0]->entries.load()[0].valid.load())
         {
-            ++it; // Find first valid entry
+            ++it;
         }
         return it;
     }
@@ -373,15 +351,12 @@ public:
 private:
     void resize_segment(Segment &segment)
     {
-        // Simplified resize implementation
-        // In production, this would use more sophisticated techniques
         size_t old_capacity = segment.capacity.load();
         size_t new_capacity = old_capacity * 2;
 
         auto new_buckets = std::make_unique<AtomicBucket[]>(new_capacity);
         Entry *new_entries = new Entry[new_capacity];
 
-        // Rehash existing entries
         Entry *old_entries = segment.entries.load();
         size_t old_size = segment.size.load();
         size_t new_size = 0;
@@ -390,16 +365,13 @@ private:
         {
             if (old_entries[i].valid.load())
             {
-                // Manually copy key and value, reset valid to true
                 new_entries[new_size].key = std::move(old_entries[i].key);
                 new_entries[new_size].value = std::move(old_entries[i].value);
                 new_entries[new_size].valid.store(true);
-                // Update bucket mapping...
                 ++new_size;
             }
         }
 
-        // Atomic swap
         Entry *old_entries_ptr = segment.entries.exchange(new_entries);
         segment.buckets = std::move(new_buckets);
         segment.capacity.store(new_capacity);
@@ -425,16 +397,13 @@ private:
 
             if (bucket_data.is_empty() || bucket_data.is_tombstone())
             {
-                // Try to claim this bucket
                 size_t entry_idx = segment.size.fetch_add(1, std::memory_order_acq_rel);
 
-                // Add entry
                 Entry *entries = segment.entries.load();
                 entries[entry_idx].key = key;
                 entries[entry_idx].value = value;
                 entries[entry_idx].valid.store(true);
 
-                // Update bucket
                 uint64_t new_bucket_data = AtomicBucket::pack(fingerprint, distance, true, false, entry_idx);
                 uint64_t expected = bucket->data.load();
 
@@ -445,7 +414,6 @@ private:
                 }
                 else
                 {
-                    // Someone else claimed this bucket, revert entry addition
                     segment.size.fetch_sub(1, std::memory_order_acq_rel);
                     entries[entry_idx].valid.store(false);
                 }
@@ -455,6 +423,6 @@ private:
             ++distance;
         }
 
-        return false; // Failed to insert
+        return false;
     }
 };

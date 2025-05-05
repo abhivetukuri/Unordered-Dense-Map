@@ -10,7 +10,6 @@
 
 using namespace std::chrono;
 
-// Performance test function
 template <typename MapType>
 double benchmark_insertion(const std::vector<std::pair<int, int>> &data)
 {
@@ -32,14 +31,12 @@ double benchmark_lookup(const MapType &map, const std::vector<int> &keys)
 {
     auto start = std::chrono::high_resolution_clock::now();
 
-    // Perform multiple passes for better measurement
     const int num_passes = 10;
     for (int pass = 0; pass < num_passes; ++pass)
     {
         for (int key : keys)
         {
             auto it = map.find(key);
-            // Prevent compiler from optimizing away the lookup
             if (it != map.end())
             {
                 volatile int dummy = it->value;
@@ -50,7 +47,7 @@ double benchmark_lookup(const MapType &map, const std::vector<int> &keys)
 
     auto end = std::chrono::high_resolution_clock::now();
     std::chrono::duration<double> diff = end - start;
-    return diff.count() / num_passes; // Return average time per pass
+    return diff.count() / num_passes;
 }
 
 void test_basic_functionality()
@@ -59,7 +56,6 @@ void test_basic_functionality()
 
     unordered_dense_map<int, std::string> map;
 
-    // Test insertion
     map[1] = "one";
     map[2] = "two";
     map[3] = "three";
@@ -69,20 +65,16 @@ void test_basic_functionality()
     assert(map[2] == "two");
     assert(map[3] == "three");
 
-    // Test find
     auto it = map.find(2);
     assert(it != map.end());
     assert(it->value == "two");
 
-    // Test contains
     assert(map.contains(1));
     assert(!map.contains(4));
 
-    // Test count
     assert(map.count(1) == 1);
     assert(map.count(4) == 0);
 
-    // Test iteration
     int count = 0;
     for (const auto &entry : map)
     {
@@ -91,12 +83,10 @@ void test_basic_functionality()
     }
     assert(count == 3);
 
-    // Test erase
     assert(map.erase(2) == 1);
     assert(map.size() == 2);
     assert(!map.contains(2));
 
-    // Test clear
     map.clear();
     assert(map.empty());
     assert(map.size() == 0);
@@ -119,12 +109,10 @@ void test_string_keys()
     assert(map["banana"] == 2);
     assert(map["cherry"] == 3);
 
-    // Test find with string
     auto it = map.find("banana");
     assert(it != map.end());
     assert(it->value == 2);
 
-    // Test erase
     assert(map.erase("apple") == 1);
     assert(map.size() == 2);
     assert(!map.contains("apple"));
@@ -138,7 +126,6 @@ void test_robin_hood_hashing()
 
     unordered_dense_map<int, int> map;
 
-    // Insert fewer elements to make debugging easier
     for (int i = 0; i < 100; ++i)
     {
         map[i] = i * 2;
@@ -146,12 +133,10 @@ void test_robin_hood_hashing()
 
     assert(map.size() == 100);
 
-    // Check key 12 specifically
     auto it12 = map.find(12);
     assert(it12 != map.end());
     assert(it12->value == 24);
 
-    // Verify all elements are still accessible
     for (int i = 0; i < 100; ++i)
     {
         auto it = map.find(i);
@@ -167,7 +152,6 @@ void test_robin_hood_hashing()
         }
     }
 
-    // Test some random lookups
     std::random_device rd;
     std::mt19937 gen(rd());
     std::uniform_int_distribution<> dis(0, 99);
@@ -189,7 +173,6 @@ void test_backward_shift_deletion()
 
     unordered_dense_map<int, int> map;
 
-    // Insert elements
     for (int i = 0; i < 100; ++i)
     {
         map[i] = i * 2;
@@ -197,7 +180,6 @@ void test_backward_shift_deletion()
 
     assert(map.size() == 100);
 
-    // Delete some elements (simplified test)
     for (int i = 25; i < 30; ++i)
     {
         assert(map.erase(i) == 1);
@@ -205,7 +187,6 @@ void test_backward_shift_deletion()
 
     assert(map.size() == 95);
 
-    // Verify remaining elements are still accessible
     for (int i = 0; i < 25; ++i)
     {
         auto it = map.find(i);
@@ -228,7 +209,6 @@ void test_backward_shift_deletion()
         }
     }
 
-    // Verify deleted elements are not accessible
     for (int i = 25; i < 30; ++i)
     {
         assert(!map.contains(i));
@@ -241,9 +221,8 @@ void performance_comparison()
 {
     std::cout << "\n=== Performance Comparison ===" << std::endl;
 
-    const int num_elements = 1000000; // 1 million elements for better measurement
+    const int num_elements = 1000000;
 
-    // Generate test data
     std::vector<std::pair<int, int>> data;
     data.reserve(num_elements);
 
@@ -256,28 +235,23 @@ void performance_comparison()
         data.emplace_back(dis(gen), i);
     }
 
-    // Generate lookup keys (mix of existing and non-existing)
     std::vector<int> lookup_keys;
     lookup_keys.reserve(num_elements);
     for (int i = 0; i < num_elements; ++i)
     {
         if (i % 3 == 0)
         {
-            // Use existing keys
             lookup_keys.push_back(data[i % data.size()].first);
         }
         else
         {
-            // Use random keys (mostly non-existing)
             lookup_keys.push_back(dis(gen));
         }
     }
 
-    // Test insertion performance
     double dense_insert_time = benchmark_insertion<unordered_dense_map<int, int>>(data);
     double std_insert_time = benchmark_insertion<std::unordered_map<int, int>>(data);
 
-    // Test lookup performance
     unordered_dense_map<int, int> dense_map;
     std::unordered_map<int, int> std_map;
 
@@ -290,7 +264,6 @@ void performance_comparison()
     double dense_lookup_time = benchmark_lookup(dense_map, lookup_keys);
     double std_lookup_time = benchmark_lookup(std_map, lookup_keys);
 
-    // Memory usage comparison (approximate)
     size_t dense_memory = sizeof(unordered_dense_map<int, int>) +
                           dense_map.size() * (sizeof(int) + sizeof(int)) +
                           dense_map.size() * sizeof(detail::Bucket);
@@ -321,17 +294,14 @@ void test_simd_optimizations()
 
     unordered_dense_map<int, int> map;
 
-    // Test with keys that would have poor hash quality (many zeros in fingerprint)
     for (int i = 0; i < 1000; ++i)
     {
-        // Use keys that might result in poor hash distribution
-        int key = i * 256; // This might create poor hash distribution
+        int key = i * 256;
         map[key] = i;
     }
 
     assert(map.size() == 1000);
 
-    // Verify all elements are accessible despite poor initial hash quality
     for (int i = 0; i < 1000; ++i)
     {
         int key = i * 256;
@@ -349,30 +319,24 @@ void test_edge_cases()
 
     unordered_dense_map<int, int> map;
 
-    // Test with zero key
     map[0] = 42;
     assert(map[0] == 42);
     assert(map.contains(0));
 
-    // Test with negative keys
     map[-1] = -42;
     map[-1000] = -2000;
     assert(map[-1] == -42);
     assert(map[-1000] == -2000);
 
-    // Test with large keys
     map[std::numeric_limits<int>::max()] = 999;
     map[std::numeric_limits<int>::min()] = -999;
     assert(map[std::numeric_limits<int>::max()] == 999);
     assert(map[std::numeric_limits<int>::min()] == -999);
 
-    // Test erase of non-existent key
     assert(map.erase(999999) == 0);
 
-    // Test find of non-existent key
     assert(map.find(999999) == map.end());
 
-    // Test empty map operations
     unordered_dense_map<int, int> empty_map;
     assert(empty_map.empty());
     assert(empty_map.size() == 0);
